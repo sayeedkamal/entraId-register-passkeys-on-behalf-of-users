@@ -1,0 +1,92 @@
+(venv) sayeedanwar1997@Mac bulkRegistration % python step1GetFIDO2Challenges.py 
+-----
+in get_access_token_for_microsoft_graph
+
+	 retrieved access_token using app credentials
+-----
+in get_group_id_for_users_in_scope_for_registration
+
+	Calling: GET https://graph.microsoft.com/beta/groups/
+-----
+in get_users_in_scope_for_registration
+
+	Calling: GET https://graph.microsoft.com/beta/groups/9a8618f2-4ceb-45d3-93d7-b31190d90dfe/members
+
+
+------------------------------------------------------
+processing user: None
+------------------------------------------------------
+
+
+-----
+in does_user_have_fido_credential
+
+	Calling: GET https://graph.microsoft.com/beta/users/66308867-8b8b-4074-801b-67a476a9c015/authentication/fido2Methods
+	User has: 1 existing fido2 security keys registered
+	Deleting existing credentials
+-----
+in delete_all_fido_credentials
+
+	Calling: DELETE https://graph.microsoft.com/beta/users/66308867-8b8b-4074-801b-67a476a9c015/authentication/fido2Methods/iUbwDQWNtJKZdPIcwLteBnlZlMtItzcTT136ShYIQ281
+	Deleted FIDO Credential: iUbwDQWNtJKZdPIcwLteBnlZlMtItzcTT136ShYIQ281
+-----
+in get_fido2_creation_options
+
+	Getting fido creation options for user with expiry: 60
+	Retrieved fido creation options for user: skamal1@hirschid.com
+
+Completed retrieval of fido creation requests for users in group: FIDO2. See csv: ./usersToRegister.csv
+
+(venv) sayeedanwar1997@Mac bulkRegistration % python step2CreateAndActivateCredential.py 
+
+
+	If PIN is not already set on security key(s), then make sure PIN is set on security keys before proceeding
+
+	Press Enter key to continue...
+-----
+in get_access_token_for_microsoft_graph
+
+	 retrieved access token using app credentials
+	Skip csv header row
+-------------------------------------------------
+	processing user: skamal1@hirschid.com
+-------------------------------------------------
+	userDisplayName: <USER_NAME>
+	userId: <USER_ID>
+	challengeExpiryTime: 2026-01-07T22:48:22Z
+	rpID: login.microsoft.com
+
+
+-----
+in create_credentials_on_security_key
+
+	Prepare for FIDO2 Registration Ceremony and follow the prompts
+
+	Press Enter when security key is ready
+
+-----
+in generate_and_set_pin
+
+	Not generating PIN. Allowing platform to prompt for PIN
+
+Enter PIN: 
+
+Touch your security key now...
+
+	New FIDO credential created on uTrust FIDO2 Key
+Attestation: o2NmbXRmcGFja2VkZ2F0dFN0bXSjY2FsZyZjc2lnWEYwRAIgSGa9sccmKVIplgKCymtOySJ_hUDWO4btsNo88am8IdUCIFaLqoKEE6WYyG4TnNXmTy_TmgGdkcslU8sciZmVVTbjY3g1Y4FZArwwggK4MIIBoKADAgECAgIQBDANBgkqhkiG9w0BAQsFADAnMSUwIwYDVQQDDBxJZGVudGl2IEZJRE8gSW50ZXJtZWRpYXRlIENBMCAXDTIwMDgxNDE2Mzk1NFoYDzIwNTAwOTA2MTYzOTU0WjBvMQswCQYDVQQGEwJVUzEVMBMGA1UECgwMSWRlbnRpdiBJbmMuMSIwIAYDVQQLDBlBdXRoZW50aWNhdG9yIEF0dGVzdGF0aW9uMSUwIwYDVQQDDBx1VHJ1c3QgRklETzIgU2VjdXJpdHkgS2V5IFAxMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdeGmVvx-7gs_1dzSDkNVfW7br6rZVKlQNUfc3sy_6koUzy04-DfFqR8F1fF78IQsgI96JtBO6jNPrjWIOVayyqNvMG0wHQYDVR0OBBYEFF667itwfup6wQSVOMl2ql16nLppMAkGA1UdEwQCMAAwEwYLKwYBBAGC5RwCAQEEBAMCBDAwHwYDVR0jBBgwFoAUtt762DXb6XvibcEr-QYWG8rcFj8wCwYDVR0PBAQDAgXgMA0GCSqGSIb3DQEBCwUAA4IBAQBTFU_U98Bs1bbm6-Cmu7GW2CB89uhgtxBpvMUeyV3Y_euKKlzfgtcvGajMGuN3Dkb-mROxSOyPKY3yTjnlLDPIWBNgnHr0PIpbEiKOFwIcq3aRDKl-aJp3aAgb_BVasJeBzWcguggEO4tTIV8Ift5_eAu6KvLqujZFWroZQpbzcT9JQd2VRMmRKqlbwTcY6998c0WNYdvxrX2gRl18_eQLPrmnr_YxLHG_bBO3x1DlSV1cAQFcE9JN-yrltvQ2yrCe8EWS8BoqP657JD9L2jk9CsifsmEaKletq7jfyGa3RERDrtc8WLjoKkxLRP2wE8bJIigsyadNycevRSi2mwLFaGF1dGhEYXRhWLI1bJ7UoJMhuWlfHq-RggPxtV9onaYfvJYYTBV92mgMgcUAAAABc0AiUfKoTwOHPjy222BLAwAg2_4Vb6SXwGtpyc0Tt7rUavuKfLLXk9QYIKTfco9RguKlAQIDJiABIVggfGjRbW_iX2J9kkASV_jcGLcbeXvJ07ImpFnCaZdw8ZgiWCDkdORUaBho_1mChhr85h1Qth3gPlT9GrShE_4Hqd7896FrY3JlZFByb3RlY3QB
+
+credentialId: <CREDENTIAL_ID>
+
+clientExtensions: b'{"credProtect": 1}'
+-----
+in create_and_activate_fido_method
+
+	Registration success.
+	Auth method objectId: 2_4Vb6SXwGtpyc0Tt7rUavuKfLLXk9QYIKTfco9RguI1
+
+	Completed registration and configuration for user: skamal1@hirschid.com
+	Press Enter key to continue...
+-----
+
+After verifying results, cleanup any csv files that are no longer needed.

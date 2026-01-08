@@ -1,3 +1,103 @@
+# Setting Up the Project Environment
+
+Follow these steps to create a Python virtual environment (venv), install dependencies, and work inside the environment. Instructions are provided for both macOS and Windows.
+
+1. Create a Virtual Environment
+# On macOS or Linux
+python3 -m venv venv
+
+# On Windows
+python -m venv venv
+
+⚠️ Caution:
+It is recommended to use Python 3.11 for this project to ensure compatibility with all dependencies.
+
+This will create a folder named venv containing an isolated Python environment.
+
+2. Activate the Virtual Environment
+# macOS / Linux
+source venv/bin/activate
+
+# Windows (PowerShell)
+.\venv\Scripts\Activate.ps1
+
+# Windows (Command Prompt)
+.\venv\Scripts\activate.bat
+
+After activation, your terminal prompt should show (venv).
+
+3. Install Dependencies
+pip install -r requirements.txt
+
+This installs all required Python libraries listed in requirements.txt.
+
+4. Deactivate the Virtual Environment
+deactivate
+
+Use this command when you want to exit the virtual environment.
+
+⚠️ Important Windows-Specific Requirements
+1. Run Scripts in Administrator Mode (Windows Only)
+
+When running this project on Windows, the scripts must be executed from an Administrator-elevated terminal.
+
+✔ Required for:
+
+Windows WebAuthn API access
+
+FIDO2 security key operations
+
+PIN and user verification workflows
+
+To do this:
+
+Open Command Prompt or PowerShell
+
+Right-click → Run as Administrator
+
+2. PIN_INVALID Error Even When PIN Is Correct
+
+In some cases, the script may repeatedly fail with a PIN_INVALID error even though the correct PIN is being entered, for example:
+
+fido2.ctap.CtapError: CTAP error: 0x31 - PIN_INVALID
+...
+fido2.client.ClientError: (<ERR.BAD_REQUEST: 2>, CtapError('CTAP error: 0x31 - PIN_INVALID'))
+
+
+This issue is often caused by:
+
+A corrupted virtual environment
+
+Cached Python bytecode
+
+Stale or mismatched library versions (e.g., after upgrades)
+
+🔧 Recommended Fix: Reset the Virtual Environment (Safe)
+
+If you encounter this issue, resetting the virtual environment usually resolves it.
+
+deactivate
+rmdir /s /q venv
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+
+✔ This guarantees a clean interpreter state
+✔ Clears cached bytecode and compiled artifacts
+✔ Reinstalls dependencies consistently
+
+✅ Additional Notes
+
+1. Always activate the virtual environment before running any scripts.
+2. If switching between operating systems (macOS ↔ Windows), do not copy the venv folder.
+3. Recreate it on the target OS and reinstall dependencies using requirements.txt.
+
+If issues persist after a venv reset, verify:
+
+1. You are using Python 3.11
+2. The terminal is running in Administrator mode (Windows)
+3. The correct security key is connected
+
 # entra-Id-register-passkeys-on-behalf-of-users
 - This project will use Microsoft Graph APIs to provision FIDO2 credentials on a FIDO2 security key. 
 - This project is an unsupported proof of concept.

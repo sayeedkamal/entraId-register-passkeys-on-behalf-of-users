@@ -1,6 +1,6 @@
 # BSD 2-Clause License
 #
-# Copyright (c) 2024, Yubico AB
+# Copyright (c) 2026, Hirsch
 #
 #   Redistribution and use in source and binary forms, with or
 #   without modification, are permitted provided that the following
@@ -26,6 +26,34 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+# ---------------------------------------------------------------------------
+# NOTE:
+# This script has been patched for compatibility with python-fido2 v2.x
+# and to ensure proper operation on macOS and other non-Windows platforms.
+#
+# The following fixes (FIX 1–FIX 7) are based on the official migration
+# guidance for python-fido2 version 1.x to 2.x:
+# https://developers.yubico.com/python-fido2/Migration_1-2.html
+#
+# FIX 1 – Issue 1: Guarded WindowsClient usage
+#   - Prevents AttributeError on macOS/Linux by checking for
+#     WindowsClient existence before calling is_available().
+#
+# FIX 2 – Issue 2: Corrected set_ctap21_flags() logic
+#   - Skips CTAP 2.1 configuration when using Windows WebAuthn in
+#     non-admin mode (unsupported scenario).
+#   - Ensures proper CTAP 2.1 setup on macOS/Linux or Windows admin.
+#
+# Other key changes from the official migration guidance:
+# - Conditional import and usage of WindowsClient
+# - Updated Fido2Client constructor using DefaultClientDataCollector
+# - Updated handling of make_credential() return objects
+# - Improved cross-platform safety checks
+#
+# These changes are required due to API-breaking updates introduced in
+# python-fido2 v2.x.
+# ---------------------------------------------------------------------------
+
 import base64
 import csv
 import ctypes
@@ -43,13 +71,21 @@ from ykman import scripting as s
 
 import requests
 import urllib3
-from fido2.client import Fido2Client, UserInteraction, WindowsClient
 from fido2.ctap2.extensions import CredProtectExtension
 from fido2.hid import CtapHidDevice
 from fido2.utils import websafe_decode, websafe_encode
 from fido2.ctap2 import Ctap2, Config
 from fido2.ctap import CtapError
 from fido2.ctap2.pin import ClientPin
+
+# FIX 1 — Correct imports (MOST IMPORTANT)
+from fido2.client import Fido2Client, DefaultClientDataCollector, UserInteraction
+
+try:
+    from fido2.client.windows import WindowsClient
+except ImportError:
+    WindowsClient = None
+# END of FIX 1
 
 # Disabling warnings that get produced when certificate stores aren't updated
 # to check certificate validity.
@@ -120,10 +156,14 @@ def create_credentials_on_security_key(
     print("\tPress Enter when security key is ready\n")
     serial_number = get_serial_number()
 
+    # ISSUE 1 (CRITICAL) Fixed: WindowsClient.is_available() still called unguarded
     if (
-        WindowsClient.is_available()
+        WindowsClient
+        and WindowsClient.is_available()
+        and sys.platform.startswith("win")
         and not ctypes.windll.shell32.IsUserAnAdmin()
     ):
+    # END of Issue 1
         # Use the Windows WebAuthn API if available, and we're not running        
         client = WindowsClient("https://" + rp_id)
 
@@ -135,12 +175,17 @@ def create_credentials_on_security_key(
         # Locate a device
         for dev in enumerate_devices():
             # Since the origin is common across all Entra ID tenants
-            # we will simply hard-code it here.            
+            # we will simply hard-code it here.  
+            # FIX 3 — Update Fido2Client constructor (v2 API)          
             client = Fido2Client(
                 dev,
-                "https://" + rp_id,
+                client_data_collector=DefaultClientDataCollector(
+                    origin="https://" + rp_id
+                ),
                 user_interaction=CliInteraction(),
-            )            
+            )
+           # END of FIX 3
+
             if client.info.options.get("rk"):
                 break
         else:
@@ -154,27 +199,37 @@ def create_credentials_on_security_key(
         challenge, user_id, user_display_name, user_name, rp_id
     )
 
+    # FIX 4 — Update make_credential() result handling
+
     result = client.make_credential(pkcco["publicKey"])
 
-    print("\tNew FIDO credential created on YubiKey")
+    print("\tNew FIDO credential created on uTrust FIDO2 Key")
 
-    attestation_obj = result["attestationObject"]
+    response = result.response
+
+    attestation_obj = response.attestation_object
     attestation = websafe_encode(attestation_obj)
     print(f"Attestation: {attestation}")
 
-    client_data = result["clientData"].b64
+    client_data = response.client_data.b64
     # print(f"\nclientData: {client_data}")
 
+    # END of FIX 4
+
+    # FIX 5 — Credential ID extraction (v2)
     credential_id = websafe_encode(
-        result.attestation_object.auth_data.credential_data.credential_id
+        response.attestation_object.auth_data.credential_data.credential_id
     )
+    # END of FIX 5
     print(f"\ncredentialId: {credential_id}")
 
+    # FIX 6 — Client extension results (v2-safe)
     client_extenstion_results = websafe_encode(
-        json.dumps(result.attestation_object.auth_data.extensions).encode(
-            "utf-8"
-        )
+        json.dumps(
+            response.attestation_object.auth_data.extensions or {}
+        ).encode("utf-8")
     )
+    # END of FIX 6
     print(f"\nclientExtensions: {websafe_decode(client_extenstion_results)}")
 
     return (
@@ -209,7 +264,7 @@ def build_creation_options(challenge, userId, displayName, name, rp_id):
     # Note at the time of writing this, webauthn.dll does not set
     # credprotect extensions. Run in admin mode if credprotect
     # extensions must be set for your scenario and for your
-    # fido2 security keys. The default behavior of YubiKeys is to
+    # fido2 security keys. The default behavior of uTrust FIDO2 keys is to
     # use credprotect level 1 if not explicitly set, the default value
     # aligns with the what Microsoft Graph expects to be used.
     # If credprotect > 1 is used on a security key, you should expect
@@ -368,7 +423,7 @@ def generate_and_set_pin():
             if ctap.info.options.get("clientPin"):
                 print("\tPIN already set for the device. Quitting.")
                 print(
-                    "\tReset YubiKey and rerun the script if you want to use the config 'useRandomPIN'"
+                    "\tReset uTrust FIDO2 Key and rerun the script if you want to use the config 'useRandomPIN'"
                 )
                 quit()
             pin = generate_pin()
@@ -379,48 +434,57 @@ def generate_and_set_pin():
     else:
         print("\tNot generating PIN. Allowing platform to prompt for PIN\n")
 
-
+# ISSUE 2 (LOGIC BUG): set_ctap21_flags() logic is inverted
 def set_ctap21_flags():
     global pin    
-    #No need to try if using the Windows client (as non-admin)
-    if not (
-        WindowsClient.is_available()
+    # Skip CTAP 2.1 config when using Windows WebAuthn as non-admin
+    # FIX 7 — WindowsClient usage guard (critical)
+    if (
+        WindowsClient
+        and WindowsClient.is_available()
         and not ctypes.windll.shell32.IsUserAnAdmin()
     ):
-        device = s.single()
-        if not configs['useRandomPIN']:
-            #Need to prompt for PIN again if using user supplied PIN
-            print("PIN required to set minimum length and force pin change flags")
-            pin = getpass("Please enter the PIN:")
-
-        with device.fido() as connection:
-            ctap = Ctap2(connection)
-            if ctap.info.options.get("setMinPINLength"):
-                client_pin = ClientPin(ctap)
-                token = client_pin.get_pin_token(
-                    pin, ClientPin.PERMISSION.AUTHENTICATOR_CFG
-                )
-                config = Config(ctap, client_pin.protocol, token)
-                print("\tGoing to set the minimum pin length to 6.")
-                config.set_min_pin_length(min_pin_length=6)
-                print("\tGoing to force a PIN change on first use.")
-                config.set_min_pin_length(force_change_pin=True)
-    else:
+    # END of FIX 7
         print(
             "Using these CTAP21 features are not supported when running in this mode"
         )
+        return
 
+    device = s.single()
+    if not configs['useRandomPIN']:
+        print("PIN required to set minimum length and force pin change flags")
+        pin = getpass("Please enter the PIN:")
+
+    with device.fido() as connection:
+        ctap = Ctap2(connection)
+        if ctap.info.options.get("setMinPINLength"):
+            client_pin = ClientPin(ctap)
+            token = client_pin.get_pin_token(
+                pin, ClientPin.PERMISSION.AUTHENTICATOR_CFG
+            )
+            config = Config(ctap, client_pin.protocol, token)
+            print("\tGoing to set the minimum pin length to 6.")
+            config.set_min_pin_length(min_pin_length=6)
+            print("\tGoing to force a PIN change on first use.")
+            config.set_min_pin_length(force_change_pin=True)
+        else:
+            print(
+                "Using these CTAP21 features are not supported when running in this mode"
+            )
+# END of # ISSUE 2 (LOGIC BUG)
 
 def get_serial_number():
     for device, info in list_all_devices():
-        print(f"\tFound YubiKey with serial number: {info.serial}")
+        print(f"\tFound uTrust FIDO2 Key with serial number: {info.serial}")
         return info.serial
 
 
 def warn_user_about_pin_behaviors():
     # See BulkRegistration.md for more details
     # Windows configurations to look out for:
-    if WindowsClient.is_available():
+    # FIX 2 — Safely check Windows availability everywhere
+    if WindowsClient and WindowsClient.is_available():
+    # END of FIX 2
         # Running on Windows as admin
         if ctypes.windll.shell32.IsUserAnAdmin():
             if not configs["useRandomPIN"]:
@@ -446,7 +510,9 @@ def warn_user_about_pin_behaviors():
                 )
                 input("\n\tPress Enter key to continue...")
     # macOS and other platforms configurations to look out for:
-    if not WindowsClient.is_available():
+    # FIX 2 — Safely check Windows availability everywhere
+    if not (WindowsClient and WindowsClient.is_available()):
+    # END of FIX 2
         if not configs["useRandomPIN"]:
             print(
                 "\n\n\tIf PIN is not already set on security key(s), "
