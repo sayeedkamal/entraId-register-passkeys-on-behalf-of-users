@@ -1,6 +1,6 @@
 # BSD 2-Clause License
 #
-# Copyright (c) 2026, Hirsch
+# Copyright (c) 2024, Yubico AB
 #
 #   Redistribution and use in source and binary forms, with or
 #   without modification, are permitted provided that the following
@@ -28,8 +28,8 @@
 
 # ---------------------------------------------------------------------------
 # NOTE:
-# This script has been patched for compatibility with python-fido2 v2.x
-# and to ensure proper operation on macOS and other non-Windows platforms.
+# This script has been patched by Hirsch for compatibility with python-fido2 
+# v2.x and to ensure proper operation on macOS and other non-Windows platforms.
 #
 # The following fixes (FIX 1–FIX 7) are based on the official migration
 # guidance for python-fido2 version 1.x to 2.x:
